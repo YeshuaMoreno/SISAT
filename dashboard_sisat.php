@@ -4,54 +4,37 @@ require_once 'conexion.php';
 require_once 'funciones.php';
 requireRoles(['ADMIN', 'SEDU', 'DIRECTOR']);
 
-// ── Conteo general ────────────────────────────────────────────
-$totalAlumnos    = $pdo->query("SELECT COUNT(*) FROM alumno WHERE ACTIVO = 1")->fetchColumn();
-$totalEscuelas   = $pdo->query("SELECT COUNT(*) FROM escuela WHERE ACTIVA = 1")->fetchColumn();
-$totalGrupos     = $pdo->query("SELECT COUNT(*) FROM grupo")->fetchColumn();
-$totalEvals      = $pdo->query("SELECT COUNT(*) FROM evaluacion_sisat")->fetchColumn();
-$totalAlertas    = $pdo->query("SELECT COUNT(*) FROM alerta")->fetchColumn();
-$alertasAbiertas = $pdo->query("SELECT COUNT(*) FROM alerta WHERE ESTATUS NOT IN ('ATENDIDA','CERRADA')")->fetchColumn();
-$alertasCerradas = $pdo->query("SELECT COUNT(*) FROM alerta WHERE ESTATUS IN ('ATENDIDA','CERRADA')")->fetchColumn();
-$totalSeguim     = $pdo->query("SELECT COUNT(*) FROM seguimiento")->fetchColumn();
+// ── Leer tarjetas desde tabla resumen (sin tocar evaluacion_sisat) ──
+$resumen      = null;
+$resumenError = null;
 
-// ── Distribución de riesgo (última eval por alumno) ───────────
-$distRaw = $pdo->query("
-    SELECT ev.NIVEL_RIESGO, COUNT(*) AS total
-    FROM evaluacion_sisat ev
-    INNER JOIN (
-        SELECT ID_ALUMNO, MAX(ID_EVALUACION) AS ultima
-        FROM evaluacion_sisat GROUP BY ID_ALUMNO
-    ) ult ON ev.ID_ALUMNO = ult.ID_ALUMNO AND ev.ID_EVALUACION = ult.ultima
-    GROUP BY ev.NIVEL_RIESGO
-")->fetchAll();
-$dist = ['BAJO' => 0, 'MEDIO' => 0, 'ALTO' => 0, 'CRITICO' => 0];
-foreach ($distRaw as $r) $dist[$r['NIVEL_RIESGO']] = (int)$r['total'];
+try {
+    $stmt   = $pdo->query("SELECT * FROM resumen_dashboard_sisat ORDER BY FECHA_ACTUALIZACION DESC LIMIT 1");
+    $resumen = $stmt->fetch();
+    if ($resumen === false) {
+        $resumenError = 'vacia';
+        $resumen      = null;
+    }
+} catch (PDOException $e) {
+    $resumenError = 'no_existe';
+}
 
-// ── Riesgo por municipio ──────────────────────────────────────
-$porMunicipio = $pdo->query("
-    SELECT
-        esc.MUNICIPIO,
-        COUNT(DISTINCT a.ID_ALUMNO) AS total_alumnos,
-        SUM(CASE WHEN ev.NIVEL_RIESGO = 'BAJO'    THEN 1 ELSE 0 END) AS bajo,
-        SUM(CASE WHEN ev.NIVEL_RIESGO = 'MEDIO'   THEN 1 ELSE 0 END) AS medio,
-        SUM(CASE WHEN ev.NIVEL_RIESGO = 'ALTO'    THEN 1 ELSE 0 END) AS alto,
-        SUM(CASE WHEN ev.NIVEL_RIESGO = 'CRITICO' THEN 1 ELSE 0 END) AS critico
-    FROM evaluacion_sisat ev
-    INNER JOIN (
-        SELECT ID_ALUMNO, MAX(ID_EVALUACION) AS ultima
-        FROM evaluacion_sisat GROUP BY ID_ALUMNO
-    ) ult ON ev.ID_ALUMNO = ult.ID_ALUMNO AND ev.ID_EVALUACION = ult.ultima
-    INNER JOIN alumno a ON a.ID_ALUMNO = ev.ID_ALUMNO AND a.ACTIVO = 1
-    LEFT JOIN grupo g ON g.ID_GRUPO = a.ID_GRUPO
-    LEFT JOIN escuela esc ON esc.ID_ESCUELA = g.ID_ESCUELA
-    WHERE esc.MUNICIPIO IS NOT NULL
-    GROUP BY esc.MUNICIPIO
-    ORDER BY (SUM(CASE WHEN ev.NIVEL_RIESGO='CRITICO' THEN 1 ELSE 0 END) +
-              SUM(CASE WHEN ev.NIVEL_RIESGO='ALTO' THEN 1 ELSE 0 END)) DESC
-    LIMIT 20
-")->fetchAll();
+// Extraer valores del resumen (0 como fallback seguro)
+$totalAlumnos    = (int)($resumen['TOTAL_ALUMNOS']      ?? 0);
+$totalEscuelas   = (int)($resumen['TOTAL_ESCUELAS']     ?? 0);
+$totalEvals      = (int)($resumen['TOTAL_EVALUACIONES'] ?? 0);
+$totalAlertas    = (int)($resumen['TOTAL_ALERTAS']      ?? 0);
+$alertasAbiertas = (int)($resumen['ALERTAS_ABIERTAS']   ?? 0);
+$alertasCerradas = (int)($resumen['ALERTAS_CERRADAS']   ?? 0);
+$dist = [
+    'BAJO'    => (int)($resumen['RIESGO_BAJO']    ?? 0),
+    'MEDIO'   => (int)($resumen['RIESGO_MEDIO']   ?? 0),
+    'ALTO'    => (int)($resumen['RIESGO_ALTO']    ?? 0),
+    'CRITICO' => (int)($resumen['RIESGO_CRITICO'] ?? 0),
+];
+$fechaResumen = $resumen['FECHA_ACTUALIZACION'] ?? null;
 
-// ── Alertas por estatus ───────────────────────────────────────
+// ── Alertas por estatus (tabla ligera) ────────────────────────
 $alertasEstatus = $pdo->query("
     SELECT ESTATUS, COUNT(*) AS total
     FROM alerta
@@ -59,15 +42,39 @@ $alertasEstatus = $pdo->query("
     ORDER BY FIELD(ESTATUS,'NUEVA','EN_REVISION','EN_SEGUIMIENTO','ATENDIDA','CERRADA')
 ")->fetchAll();
 
-// ── Evaluaciones por ciclo escolar ────────────────────────────
+// ── Riesgo por municipio (agrupado, solo si hay datos) ────────
+$porMunicipio = $pdo->query("
+    SELECT
+        esc.MUNICIPIO,
+        COUNT(DISTINCT a.ID_ALUMNO)                                    AS total_alumnos,
+        SUM(CASE WHEN ev.NIVEL_RIESGO = 'BAJO'    THEN 1 ELSE 0 END)  AS bajo,
+        SUM(CASE WHEN ev.NIVEL_RIESGO = 'MEDIO'   THEN 1 ELSE 0 END)  AS medio,
+        SUM(CASE WHEN ev.NIVEL_RIESGO = 'ALTO'    THEN 1 ELSE 0 END)  AS alto,
+        SUM(CASE WHEN ev.NIVEL_RIESGO = 'CRITICO' THEN 1 ELSE 0 END)  AS critico
+    FROM evaluacion_sisat ev
+    INNER JOIN (
+        SELECT ID_ALUMNO, MAX(ID_EVALUACION) AS ultima
+        FROM evaluacion_sisat GROUP BY ID_ALUMNO
+    ) ult ON ev.ID_ALUMNO = ult.ID_ALUMNO AND ev.ID_EVALUACION = ult.ultima
+    INNER JOIN alumno  a   ON a.ID_ALUMNO    = ev.ID_ALUMNO AND a.ACTIVO = 1
+    LEFT  JOIN grupo   g   ON g.ID_GRUPO     = a.ID_GRUPO
+    LEFT  JOIN escuela esc ON esc.ID_ESCUELA = g.ID_ESCUELA
+    WHERE esc.MUNICIPIO IS NOT NULL
+    GROUP BY esc.MUNICIPIO
+    ORDER BY (SUM(CASE WHEN ev.NIVEL_RIESGO='CRITICO' THEN 1 ELSE 0 END) +
+              SUM(CASE WHEN ev.NIVEL_RIESGO='ALTO'    THEN 1 ELSE 0 END)) DESC
+    LIMIT 20
+")->fetchAll();
+
+// ── Evaluaciones por ciclo (inferido desde fecha) ─────────────
 $porCiclo = $pdo->query("
     SELECT
         CASE
             WHEN MONTH(FECHA_EVALUACION) >= 9
                 THEN CONCAT(YEAR(FECHA_EVALUACION),'-',YEAR(FECHA_EVALUACION)+1)
             ELSE CONCAT(YEAR(FECHA_EVALUACION)-1,'-',YEAR(FECHA_EVALUACION))
-        END AS ciclo,
-        COUNT(*) AS total,
+        END                                                AS ciclo,
+        COUNT(*)                                           AS total,
         SUM(CASE WHEN NIVEL_RIESGO='MEDIO'   THEN 1 ELSE 0 END) AS medio,
         SUM(CASE WHEN NIVEL_RIESGO='ALTO'    THEN 1 ELSE 0 END) AS alto,
         SUM(CASE WHEN NIVEL_RIESGO='CRITICO' THEN 1 ELSE 0 END) AS critico
@@ -76,15 +83,15 @@ $porCiclo = $pdo->query("
     ORDER BY ciclo
 ")->fetchAll();
 
-// ── Top 10 escuelas críticas ──────────────────────────────────
+// ── Top 10 escuelas críticas (tabla alerta, sin escanear eval) ─
 $top10 = $pdo->query("
     SELECT
         esc.NOMBRE_ESCUELA, esc.MUNICIPIO,
         COUNT(al.ID_ALERTA) AS criticos
     FROM alerta al
-    INNER JOIN alumno a ON a.ID_ALUMNO = al.ID_ALUMNO
-    LEFT JOIN grupo g ON g.ID_GRUPO = a.ID_GRUPO
-    LEFT JOIN escuela esc ON esc.ID_ESCUELA = g.ID_ESCUELA
+    INNER JOIN alumno  a   ON a.ID_ALUMNO    = al.ID_ALUMNO
+    LEFT  JOIN grupo   g   ON g.ID_GRUPO     = a.ID_GRUPO
+    LEFT  JOIN escuela esc ON esc.ID_ESCUELA = g.ID_ESCUELA
     WHERE al.NIVEL_RIESGO = 'CRITICO'
       AND al.ESTATUS NOT IN ('ATENDIDA','CERRADA')
     GROUP BY esc.ID_ESCUELA
@@ -92,24 +99,25 @@ $top10 = $pdo->query("
     LIMIT 10
 ")->fetchAll();
 
-// ── Preparar datos para Chart.js ──────────────────────────────
+// ── Datos para Chart.js ───────────────────────────────────────
 $labMun   = json_encode(array_column($porMunicipio, 'MUNICIPIO'));
 $datMedio = json_encode(array_column($porMunicipio, 'medio'));
 $datAlto  = json_encode(array_column($porMunicipio, 'alto'));
 $datCrit  = json_encode(array_column($porMunicipio, 'critico'));
 
-$labEstatus = json_encode(array_map(function($r) {
-    $mapa = ['NUEVA'=>'Nueva','EN_REVISION'=>'En revisión',
-             'EN_SEGUIMIENTO'=>'En seguimiento','ATENDIDA'=>'Atendida','CERRADA'=>'Cerrada'];
-    return $mapa[$r['ESTATUS']] ?? $r['ESTATUS'];
+$labEstatus = json_encode(array_map(function ($r) {
+    return ['NUEVA'=>'Nueva','EN_REVISION'=>'En revisión',
+            'EN_SEGUIMIENTO'=>'En seguimiento','ATENDIDA'=>'Atendida',
+            'CERRADA'=>'Cerrada'][$r['ESTATUS']] ?? $r['ESTATUS'];
 }, $alertasEstatus));
 $datEstatus = json_encode(array_column($alertasEstatus, 'total'));
 
-$labCiclo   = json_encode(array_column($porCiclo, 'ciclo'));
-$datCicloM  = json_encode(array_column($porCiclo, 'medio'));
-$datCicloA  = json_encode(array_column($porCiclo, 'alto'));
-$datCicloC  = json_encode(array_column($porCiclo, 'critico'));
+$labCiclo  = json_encode(array_column($porCiclo, 'ciclo'));
+$datCicloM = json_encode(array_column($porCiclo, 'medio'));
+$datCicloA = json_encode(array_column($porCiclo, 'alto'));
+$datCicloC = json_encode(array_column($porCiclo, 'critico'));
 
+// Dona de riesgo usa directamente el resumen
 $datRiesgo = json_encode([
     $dist['BAJO'], $dist['MEDIO'], $dist['ALTO'], $dist['CRITICO']
 ]);
@@ -125,14 +133,52 @@ $paginaActual = 'dashboard_sisat.php';
     <link rel="stylesheet" href="estilos.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
+        /* ── Grid de tarjetas: responsive, sin overflow ─────────── */
+        .grid-metricas {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        .card-metrica {
+            min-width: 0;          /* evita que flexbox/grid expanda */
+            max-width: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        /* Número grande: se achica cuando el espacio es poco */
+        .card-metrica .valor {
+            font-size: clamp(22px, 2.4vw, 40px);
+            font-weight: 900;
+            color: #061f45;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Contenedor principal: sin scroll horizontal */
+        .pagina,
+        .main-content {
+            overflow-x: hidden;
+        }
+
+        /* ── Charts ──────────────────────────────────────────────── */
         .chart-container {
-            position: relative;
             background: #fff;
             border-radius: 13px;
             border: 1px solid #dce3ef;
             box-shadow: 0 3px 10px rgba(0,0,0,.05);
             padding: 20px 22px;
             margin-bottom: 22px;
+            min-width: 0;
+            overflow: hidden;
         }
         .chart-container h3 {
             font-size: 15px;
@@ -145,7 +191,11 @@ $paginaActual = 'dashboard_sisat.php';
             grid-template-columns: 1fr 1fr;
             gap: 20px;
         }
-        @media(max-width:900px) { .charts-2col { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) {
+            .charts-2col { grid-template-columns: 1fr; }
+        }
+
+        /* ── Badge TESIS ─────────────────────────────────────────── */
         .badge-sim {
             display: inline-block;
             background: linear-gradient(135deg, #1e3a5f, #0b63ce);
@@ -155,6 +205,40 @@ $paginaActual = 'dashboard_sisat.php';
             padding: 3px 10px;
             border-radius: 20px;
             letter-spacing: .5px;
+            vertical-align: middle;
+        }
+
+        /* ── Banner de aviso resumen ─────────────────────────────── */
+        .aviso-resumen {
+            background: #fefce8;
+            border: 1.5px solid #fde047;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+        .aviso-resumen .aviso-ico { font-size: 26px; line-height: 1; }
+        .aviso-resumen h4 { color: #713f12; font-size: 15px; margin-bottom: 4px; }
+        .aviso-resumen p  { color: #78350f; font-size: 13px; line-height: 1.6; margin: 0; }
+        .aviso-resumen code {
+            display: inline-block;
+            background: #1e293b;
+            color: #fde047;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        /* ── Fecha de actualización ──────────────────────────────── */
+        .resumen-meta {
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: right;
+            margin-top: -14px;
+            margin-bottom: 18px;
         }
     </style>
 </head>
@@ -162,6 +246,7 @@ $paginaActual = 'dashboard_sisat.php';
 <div class="layout">
     <?php require_once 'sidebar.php'; ?>
     <div class="main-content">
+
         <div class="topbar">
             <div class="topbar-titulo">
                 📊 Dashboard Simulación SISAT
@@ -169,9 +254,39 @@ $paginaActual = 'dashboard_sisat.php';
             </div>
             <span class="topbar-rol"><?= h(rolActual()) ?></span>
         </div>
+
         <div class="pagina">
 
-            <!-- ── Tarjetas de métricas ─────────────────────── -->
+            <?php if ($resumenError !== null): ?>
+            <!-- ── Aviso: tabla resumen no disponible ─────────────── -->
+            <div class="aviso-resumen">
+                <div class="aviso-ico">⚠️</div>
+                <div>
+                    <h4>
+                        <?= $resumenError === 'no_existe'
+                            ? 'La tabla resumen_dashboard_sisat no existe'
+                            : 'La tabla resumen_dashboard_sisat está vacía' ?>
+                    </h4>
+                    <p>
+                        Las tarjetas de totales no pueden mostrarse porque la tabla de resumen
+                        <?= $resumenError === 'no_existe' ? 'no ha sido creada' : 'no tiene datos' ?>.
+                        Las gráficas siguen funcionando directamente desde la base de datos.<br><br>
+                        Para generar el resumen, ejecuta en MySQL Workbench o phpMyAdmin:<br>
+                        <code>actualizar_resumen_dashboard.sql</code>
+                        &nbsp;—&nbsp; o corre el script desde la terminal:
+                        <code>mysql -u root -p sisat &lt; actualizar_resumen_dashboard.sql</code>
+                    </p>
+                </div>
+            </div>
+            <?php elseif ($fechaResumen): ?>
+            <div class="resumen-meta">
+                📅 Datos actualizados al: <strong><?= h(fechaHora($fechaResumen)) ?></strong>
+                &nbsp;·&nbsp;
+                <a href="?refrescar=1" style="color:#0b63ce;font-size:12px;">Forzar recarga de gráficas</a>
+            </div>
+            <?php endif; ?>
+
+            <!-- ── Fila 1: Totales generales ──────────────────────── -->
             <div class="grid-metricas">
                 <div class="card-metrica azul">
                     <div class="label">Total alumnos</div>
@@ -205,56 +320,55 @@ $paginaActual = 'dashboard_sisat.php';
                 </div>
             </div>
 
-            <!-- Distribución de riesgo (tarjetas) -->
+            <!-- ── Fila 2: Distribución de riesgo ────────────────── -->
             <div class="grid-metricas">
                 <div class="card-metrica verde">
                     <div class="label">Riesgo bajo</div>
                     <div class="valor"><?= number_format($dist['BAJO']) ?></div>
+                    <div class="ico">🟢</div>
                 </div>
                 <div class="card-metrica amarillo">
                     <div class="label">Riesgo medio</div>
                     <div class="valor"><?= number_format($dist['MEDIO']) ?></div>
+                    <div class="ico">🟡</div>
                 </div>
                 <div class="card-metrica naranja">
                     <div class="label">Riesgo alto</div>
                     <div class="valor"><?= number_format($dist['ALTO']) ?></div>
+                    <div class="ico">🟠</div>
                 </div>
                 <div class="card-metrica rojo">
                     <div class="label">Riesgo crítico</div>
                     <div class="valor"><?= number_format($dist['CRITICO']) ?></div>
+                    <div class="ico">🔴</div>
                 </div>
             </div>
 
-            <!-- ── Gráficas ─────────────────────────────────── -->
+            <!-- ── Gráficas: dona riesgo + dona estatus ───────────── -->
             <div class="charts-2col">
-
-                <!-- Dona: distribución de riesgo -->
                 <div class="chart-container">
                     <h3>🍩 Distribución de nivel de riesgo</h3>
                     <canvas id="chartDonaRiesgo" height="260"></canvas>
                 </div>
-
-                <!-- Dona: alertas por estatus -->
                 <div class="chart-container">
                     <h3>🔔 Alertas por estatus</h3>
                     <canvas id="chartDonaEstatus" height="260"></canvas>
                 </div>
-
             </div>
 
-            <!-- Barras: riesgo por municipio -->
+            <!-- ── Barras: riesgo por municipio ──────────────────── -->
             <div class="chart-container">
                 <h3>📍 Nivel de riesgo por municipio (top 20)</h3>
                 <canvas id="chartBarMunicipio" height="120"></canvas>
             </div>
 
-            <!-- Línea: evaluaciones por ciclo escolar -->
+            <!-- ── Línea: historial por ciclo escolar ────────────── -->
             <div class="chart-container">
-                <h3>📈 Evaluaciones por nivel de riesgo — serie histórica por ciclo escolar</h3>
+                <h3>📈 Evaluaciones por nivel de riesgo — serie por ciclo escolar</h3>
                 <canvas id="chartLineaCiclo" height="100"></canvas>
             </div>
 
-            <!-- ── Top 10 escuelas críticas ─────────────────── -->
+            <!-- ── Top 10 escuelas críticas ───────────────────────── -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>🚨 Top 10 escuelas con más casos críticos abiertos</h3>
@@ -272,7 +386,11 @@ $paginaActual = 'dashboard_sisat.php';
                         </thead>
                         <tbody>
                         <?php if (empty($top10)): ?>
-                            <tr><td colspan="5" class="texto-centro texto-gris" style="padding:20px;">Sin datos disponibles.</td></tr>
+                            <tr>
+                                <td colspan="5" class="texto-centro texto-gris" style="padding:20px;">
+                                    Sin casos críticos abiertos.
+                                </td>
+                            </tr>
                         <?php else: ?>
                             <?php $maxCrit = max(array_column($top10, 'criticos') ?: [1]); ?>
                             <?php foreach ($top10 as $i => $t): ?>
@@ -280,10 +398,12 @@ $paginaActual = 'dashboard_sisat.php';
                                 <td style="color:#64748b;font-weight:700;"><?= $i + 1 ?></td>
                                 <td><strong><?= h($t['NOMBRE_ESCUELA'] ?? '—') ?></strong></td>
                                 <td><?= h($t['MUNICIPIO'] ?? '—') ?></td>
-                                <td style="font-size:20px;font-weight:900;color:#dc2626;"><?= number_format($t['criticos']) ?></td>
+                                <td style="font-size:20px;font-weight:900;color:#dc2626;">
+                                    <?= number_format($t['criticos']) ?>
+                                </td>
                                 <td style="min-width:120px;">
                                     <div style="height:12px;background:#fee2e2;border-radius:6px;overflow:hidden;">
-                                        <div style="height:100%;width:<?= round($t['criticos']/$maxCrit*100) ?>%;background:#dc2626;border-radius:6px;"></div>
+                                        <div style="height:100%;width:<?= round($t['criticos'] / $maxCrit * 100) ?>%;background:#dc2626;border-radius:6px;"></div>
                                     </div>
                                 </td>
                             </tr>
@@ -294,7 +414,7 @@ $paginaActual = 'dashboard_sisat.php';
                 </div>
             </div>
 
-            <!-- ── Tabla: riesgo por municipio ─────────────── -->
+            <!-- ── Detalle por municipio ──────────────────────────── -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>📍 Detalle de riesgo por municipio</h3>
@@ -315,14 +435,18 @@ $paginaActual = 'dashboard_sisat.php';
                         </thead>
                         <tbody>
                         <?php if (empty($porMunicipio)): ?>
-                            <tr><td colspan="7" class="texto-centro texto-gris" style="padding:20px;">
-                                Sin datos. Genera e importa la simulación primero.</td></tr>
+                            <tr>
+                                <td colspan="7" class="texto-centro texto-gris" style="padding:20px;">
+                                    Sin datos. Importa la simulación primero.
+                                </td>
+                            </tr>
                         <?php else: ?>
                             <?php foreach ($porMunicipio as $m): ?>
                             <?php
-                                $total = $m['total_alumnos'] ?: 1;
-                                $enRiesgo = $m['medio'] + $m['alto'] + $m['critico'];
-                                $pct = round($enRiesgo / $total * 100, 1);
+                                $tot      = (int)$m['total_alumnos'] ?: 1;
+                                $enRiesgo = (int)$m['medio'] + (int)$m['alto'] + (int)$m['critico'];
+                                $pct      = round($enRiesgo / $tot * 100, 1);
+                                $barColor = $pct > 50 ? '#dc2626' : ($pct > 25 ? '#ea580c' : '#16a34a');
                             ?>
                             <tr>
                                 <td><strong><?= h($m['MUNICIPIO'] ?? '—') ?></strong></td>
@@ -334,7 +458,7 @@ $paginaActual = 'dashboard_sisat.php';
                                 <td>
                                     <div style="display:flex;align-items:center;gap:8px;">
                                         <div style="flex:1;background:#f1f5f9;border-radius:4px;height:8px;overflow:hidden;">
-                                            <div style="width:<?= $pct ?>%;height:100%;border-radius:4px;background:<?= $pct>50?'#dc2626':($pct>25?'#ea580c':'#16a34a') ?>;"></div>
+                                            <div style="width:<?= $pct ?>%;height:100%;border-radius:4px;background:<?= $barColor ?>;"></div>
                                         </div>
                                         <span style="font-size:12px;font-weight:700;"><?= $pct ?>%</span>
                                     </div>
@@ -347,20 +471,22 @@ $paginaActual = 'dashboard_sisat.php';
                 </div>
             </div>
 
-            <!-- Info de generación -->
+            <!-- ── Panel informativo ──────────────────────────────── -->
             <div class="panel">
                 <div class="panel-header"><h3>ℹ️ Acerca de este dashboard</h3></div>
                 <div class="panel-body">
-                    <p style="font-size:14px;color:#475569;line-height:1.7;">
-                        Los datos provienen de la base de datos <strong>sisat</strong> en MySQL.<br>
-                        Para datos de simulación masiva (modo TESIS: ~150,000 alumnos, ~4.5M evaluaciones),
-                        ejecuta el generador:
+                    <p style="font-size:14px;color:#475569;line-height:1.8;">
+                        Las <strong>tarjetas de totales y riesgo</strong> se leen desde
+                        <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:13px;">resumen_dashboard_sisat</code>
+                        para garantizar velocidad con millones de registros.<br>
+                        Las <strong>gráficas</strong> se calculan en tiempo real desde las tablas operativas.
                     </p>
-                    <pre style="background:#1e293b;color:#e2e8f0;padding:14px 18px;border-radius:9px;font-size:13px;margin-top:12px;overflow-x:auto;">
-python simulacion_sisat/generar_datos_sisat.py --modo tesis
-python simulacion_sisat/importar_csv_mysql.py</pre>
+                    <p style="font-size:13px;color:#64748b;margin-top:8px;">
+                        Para recalcular los totales después de importar datos nuevos, ejecuta:
+                    </p>
+                    <pre style="background:#1e293b;color:#e2e8f0;padding:14px 18px;border-radius:9px;font-size:13px;margin-top:10px;overflow-x:auto;white-space:pre-wrap;">mysql -u root -p sisat &lt; actualizar_resumen_dashboard.sql</pre>
                     <div class="flex-gap mt-20">
-                        <a class="btn btn-primario" href="reportes.php">📊 Reportes SEDU</a>
+                        <a class="btn btn-primario"   href="reportes.php">📊 Reportes SEDU</a>
                         <a class="btn btn-secundario" href="alertas.php">🔔 Ver alertas</a>
                         <a class="btn btn-secundario" href="alumnos.php">👤 Ver alumnos</a>
                     </div>
@@ -371,13 +497,12 @@ python simulacion_sisat/importar_csv_mysql.py</pre>
     </div><!-- /main-content -->
 </div><!-- /layout -->
 
-<!-- ── Chart.js ─────────────────────────────────────────────── -->
 <script>
 Chart.defaults.font.family = "'Segoe UI', Arial, sans-serif";
 Chart.defaults.font.size   = 12;
 Chart.defaults.color       = '#475569';
 
-// ── 1. DONA: Distribución de riesgo ────────────────────────────
+// ── 1. DONA: Distribución de riesgo (desde resumen) ────────────
 new Chart(document.getElementById('chartDonaRiesgo'), {
     type: 'doughnut',
     data: {
@@ -385,7 +510,8 @@ new Chart(document.getElementById('chartDonaRiesgo'), {
         datasets: [{
             data: <?= $datRiesgo ?>,
             backgroundColor: ['#16a34a', '#ca8a04', '#ea580c', '#dc2626'],
-            borderWidth: 2, borderColor: '#fff',
+            borderWidth: 2,
+            borderColor: '#fff',
         }],
     },
     options: {
@@ -396,12 +522,12 @@ new Chart(document.getElementById('chartDonaRiesgo'), {
             tooltip: {
                 callbacks: {
                     label: ctx => {
-                        const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
                         const pct   = total ? (ctx.raw / total * 100).toFixed(1) : 0;
                         return ` ${ctx.raw.toLocaleString()} alumnos (${pct}%)`;
-                    }
-                }
-            }
+                    },
+                },
+            },
         },
     },
 });
@@ -413,8 +539,9 @@ new Chart(document.getElementById('chartDonaEstatus'), {
         labels: <?= $labEstatus ?>,
         datasets: [{
             data: <?= $datEstatus ?>,
-            backgroundColor: ['#3b82f6','#f59e0b','#ea580c','#16a34a','#94a3b8'],
-            borderWidth: 2, borderColor: '#fff',
+            backgroundColor: ['#3b82f6', '#f59e0b', '#ea580c', '#16a34a', '#94a3b8'],
+            borderWidth: 2,
+            borderColor: '#fff',
         }],
     },
     options: {
@@ -425,17 +552,17 @@ new Chart(document.getElementById('chartDonaEstatus'), {
             tooltip: {
                 callbacks: {
                     label: ctx => {
-                        const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
                         const pct   = total ? (ctx.raw / total * 100).toFixed(1) : 0;
                         return ` ${ctx.raw.toLocaleString()} (${pct}%)`;
-                    }
-                }
-            }
+                    },
+                },
+            },
         },
     },
 });
 
-// ── 3. BARRAS: Riesgo por municipio ────────────────────────────
+// ── 3. BARRAS APILADAS: riesgo por municipio ───────────────────
 new Chart(document.getElementById('chartBarMunicipio'), {
     type: 'bar',
     data: {
@@ -456,16 +583,12 @@ new Chart(document.getElementById('chartBarMunicipio'), {
         },
         plugins: {
             legend: { position: 'top' },
-            tooltip: {
-                callbacks: {
-                    label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()}`
-                }
-            }
+            tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()}` } },
         },
     },
 });
 
-// ── 4. LÍNEA: Evaluaciones por ciclo escolar ───────────────────
+// ── 4. LÍNEA: historial por ciclo escolar ──────────────────────
 new Chart(document.getElementById('chartLineaCiclo'), {
     type: 'line',
     data: {
@@ -502,11 +625,7 @@ new Chart(document.getElementById('chartLineaCiclo'), {
         },
         plugins: {
             legend: { position: 'top' },
-            tooltip: {
-                callbacks: {
-                    label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()}`
-                }
-            }
+            tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()}` } },
         },
     },
 });
