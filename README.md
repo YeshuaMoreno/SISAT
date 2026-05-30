@@ -41,8 +41,8 @@ El sistema busca apoyar la toma de decisiones tempranas mediante indicadores rel
 | Dashboard principal          | 🟢 Funcional         |
 | Dashboard de simulación      | 🟢 Funcional         |
 | Simulación masiva modo tesis | 🟢 Funcional         |
-| Reportes institucionales     | 🟡 Base implementada |
-| Exportación PDF/Excel        | 🔵 Pendiente         |
+| Reportes institucionales     | 🟢 Funcional         |
+| Exportación PDF/Excel        | 🟢 Funcional         |
 
 ---
 
@@ -139,7 +139,11 @@ La autenticación se mantiene separada del modelo académico para reducir depend
 | `evaluacion_detalle`      | Indicadores activos por evaluación   |
 | `alerta`                  | Alertas generadas por riesgo         |
 | `seguimiento`             | Acciones de atención y seguimiento   |
-| `resumen_dashboard_sisat` | Tabla resumen para dashboards        |
+| `resumen_dashboard_sisat`        | Tabla resumen para dashboards              |
+| `resumen_riesgo_municipio`       | Resumen de riesgo agrupado por municipio   |
+| `resumen_riesgo_escuela`         | Resumen de riesgo agrupado por escuela     |
+| `resumen_alertas_estatus`        | Conteo de alertas por estatus              |
+| `resumen_top_escuelas_criticas`  | Top escuelas con más casos críticos        |
 
 ---
 
@@ -336,6 +340,9 @@ SISAT/
 ├── sisat.sql
 ├── usuarios.php
 ├── actualizar_resumen_dashboard.sql
+├── actualizar_resumen_reportes.sql
+├── exportar_excel.php
+├── exportar_pdf.php
 ├── reparar_nivel_riesgo.sql
 ├── simulacion_sisat/
 │   ├── generar_datos_sisat.py
@@ -510,6 +517,59 @@ El dashboard usa esta tabla para cargar rápidamente sin consultar millones de r
 
 ---
 
+## 📋 Reportes y exportación
+
+### Reportes institucionales
+
+`reportes.php` ofrece una vista completa de reportes institucionales para SEDU, Dirección y Admin:
+
+* Resumen general con 10 indicadores clave.
+* Distribución de riesgo por municipio.
+* Distribución de riesgo por escuela (filtrable por municipio y nivel).
+* Alertas por estatus con porcentajes.
+* Top escuelas con más casos críticos abiertos.
+* Filtros: municipio, nivel educativo y cantidad de resultados.
+
+Los reportes leen desde **tablas resumen** para garantizar velocidad con millones de registros.
+Para generar las tablas resumen de reportes ejecutar:
+
+```bat
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root < actualizar_resumen_reportes.sql
+```
+
+### Exportación Excel
+
+`exportar_excel.php` genera archivos `.xls` compatibles con Microsoft Excel y LibreOffice Calc:
+
+```txt
+exportar_excel.php?tipo=general
+exportar_excel.php?tipo=municipio
+exportar_excel.php?tipo=escuela
+exportar_excel.php?tipo=alertas
+exportar_excel.php?tipo=criticos
+```
+
+Acepta filtros opcionales: `&municipio=Saltillo&nivel=SECUNDARIA`
+
+No requiere librerías externas. Usa HTML con `Content-Type: application/vnd.ms-excel`.
+
+### Exportación PDF
+
+`exportar_pdf.php` genera reportes en PDF:
+
+* **Con Dompdf instalado vía Composer**: genera PDF real descargable.
+* **Sin Dompdf** (caso por defecto): genera vista HTML imprimible con CSS `@print` y botón "Imprimir / Guardar PDF". El usuario guarda como PDF desde el diálogo de impresión del navegador.
+
+```txt
+exportar_pdf.php?tipo=general
+exportar_pdf.php?tipo=municipio
+exportar_pdf.php?tipo=escuela
+exportar_pdf.php?tipo=alertas
+exportar_pdf.php?tipo=criticos
+```
+
+---
+
 ## ⚠️ Advertencia sobre archivos grandes
 
 Los archivos generados dentro de:
@@ -587,7 +647,6 @@ git push
 ## 🚧 Mejoras futuras
 
 * Paginación avanzada para alumnos.
-* Exportación PDF y Excel.
 * Bitácora de acciones por usuario.
 * Filtros avanzados por municipio, escuela y ciclo escolar.
 * Optimización de reportes para grandes volúmenes.
