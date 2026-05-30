@@ -1,0 +1,3 @@
+anio,ciclo_escolar,municipio,cct,nombre_escuela,nivel,grado,grupo,matricula,sexo,edad,asistencia_porcentaje,promedio_general,puntaje_riesgo,nivel_riesgo,alerta_generada
+2024,2024-2025,Saltillo,05DST0001A,Sec. Técnica No. 1,SECUNDARIA,2,A,COA0000001,F,14,92.0,8.5,1,BAJO,0
+2024,2024-2025,Saltillo,05DST0001A,Sec. Técnica No. 1,SECUNDARIA,2,A,COA0000002,M,13,74.0,5.2,7,ALTO,1

@@ -11,3 +11,9 @@ simulacion_sisat/output/
 simulacion_sisat/output/**/*.csv
 simulacion_sisat/output/**/*.gz
 *.csv.gz
+
+# SISAT simulation generated data
+simulacion_sisat/output/
+simulacion_sisat/output/**/*.csv
+simulacion_sisat/output/**/*.gz
+*.csv.gz
