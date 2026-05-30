@@ -4,7 +4,7 @@
 ![MySQL](https://img.shields.io/badge/Database-MySQL-4479A1?style=for-the-badge\&logo=mysql\&logoColor=white)
 ![Python](https://img.shields.io/badge/Data%20Simulation-Python-3776AB?style=for-the-badge\&logo=python\&logoColor=white)
 ![Chart.js](https://img.shields.io/badge/Dashboard-Chart.js-FF6384?style=for-the-badge\&logo=chartdotjs\&logoColor=white)
-![Status](https://img.shields.io/badge/Status-En%20Desarrollo-yellow?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Prototipo%20Funcional-brightgreen?style=for-the-badge)
 
 ---
 
@@ -12,40 +12,37 @@
 
 **SISAT** es un sistema web desarrollado en **PHP + MySQL** para automatizar el proceso de detección, registro, análisis y seguimiento de alumnos con posible riesgo de abandono escolar.
 
-El sistema permite capturar evaluaciones académicas y de contexto, calcular automáticamente el nivel de riesgo del alumno, generar alertas tempranas y registrar acciones de seguimiento por parte de docentes, orientación, dirección y autoridades educativas.
+El sistema permite capturar evaluaciones escolares, calcular automáticamente el nivel de riesgo del alumno, generar alertas tempranas y registrar acciones de seguimiento por parte de docentes, orientación, dirección y autoridades educativas.
 
-Este proyecto está orientado a un escenario académico de tesis, incorporando además un módulo de **simulación masiva de datos históricos** para análisis, dashboards y pruebas de escalabilidad.
-
----
-
-## 🎯 Objetivo del proyecto
-
-Automatizar un proceso que normalmente se realiza de manera manual, permitiendo:
-
-* Registrar escuelas, grupos y alumnos.
-* Capturar evaluaciones SISAT.
-* Calcular el nivel de riesgo escolar.
-* Generar alertas tempranas.
-* Registrar seguimiento de casos.
-* Consultar reportes institucionales.
-* Simular datos históricos para análisis estatal.
-* Visualizar indicadores mediante dashboards.
+Además, el proyecto incorpora un módulo de **simulación masiva de datos históricos**, desarrollado en Python, para probar el comportamiento del sistema con un volumen representativo de información a nivel tesis.
 
 ---
 
-## 📌 Estado del proyecto
+## 🎯 Objetivo general
 
-* 🟢 **Login y roles** → FUNCIONAL
-* 🟢 **CRUD de alumnos** → FUNCIONAL
-* 🟢 **CRUD de escuelas** → FUNCIONAL
-* 🟢 **CRUD de grupos** → FUNCIONAL
-* 🟢 **Captura SISAT** → FUNCIONAL
-* 🟢 **Alertas tempranas** → FUNCIONAL
-* 🟢 **Seguimiento de casos** → FUNCIONAL
-* 🟡 **Dashboard principal** → EN MEJORA
-* 🟡 **Dashboard de simulación** → EN DESARROLLO
-* 🟡 **Simulación masiva modo TESIS** → EN DESARROLLO
-* 🔵 **Reportes SEDU** → BASE IMPLEMENTADA
+Automatizar un proceso que normalmente se realiza de manera manual, permitiendo que la información fluya desde la captura escolar hasta el análisis institucional mediante reportes, alertas y dashboards.
+
+El sistema busca apoyar la toma de decisiones tempranas mediante indicadores relacionados con asistencia, rendimiento académico, rezago escolar y factores de riesgo socioemocional o familiar.
+
+---
+
+## ✅ Estado del proyecto
+
+| Módulo                       | Estado               |
+| ---------------------------- | -------------------- |
+| Login y control de roles     | 🟢 Funcional         |
+| CRUD de alumnos              | 🟢 Funcional         |
+| CRUD de escuelas             | 🟢 Funcional         |
+| CRUD de grupos               | 🟢 Funcional         |
+| Captura SISAT                | 🟢 Funcional         |
+| Cálculo automático de riesgo | 🟢 Funcional         |
+| Alertas tempranas            | 🟢 Funcional         |
+| Seguimiento de casos         | 🟢 Funcional         |
+| Dashboard principal          | 🟢 Funcional         |
+| Dashboard de simulación      | 🟢 Funcional         |
+| Simulación masiva modo tesis | 🟢 Funcional         |
+| Reportes institucionales     | 🟡 Base implementada |
+| Exportación PDF/Excel        | 🔵 Pendiente         |
 
 ---
 
@@ -62,52 +59,53 @@ Automatizar un proceso que normalmente se realiza de manera manual, permitiendo:
 ### 🗄️ Base de datos
 
 * MySQL
-* MariaDB
-* Navicat Premium
 * Modelo Entidad-Relación
-* Vistas SQL para reportes
+* Vistas y consultas SQL
+* Tablas resumen para dashboards
+* Índices para consultas de alto volumen
 
 ### 🎨 Frontend
 
 * HTML5
 * CSS3
 * JavaScript
-* Diseño institucional responsivo
 * Sidebar por roles
+* Diseño institucional responsivo
 
-### 📊 Dashboards y simulación
+### 📊 Análisis y simulación
 
-* Chart.js
 * Python
 * CSV
+* Chart.js
 * Simulación por streaming
 * Datos históricos sintéticos
+* Dashboard de alto volumen
 
 ---
 
 ## 🏗️ Arquitectura general
 
-El sistema mantiene una arquitectura web tradicional basada en PHP y MySQL:
+El sistema utiliza una arquitectura web tradicional:
 
 ```txt
 Usuario
   ↓
 Interfaz PHP / HTML / CSS
   ↓
-Control de sesiones y roles
+Control de sesión y permisos
   ↓
 Lógica SISAT
   ↓
 Base de datos MySQL
   ↓
-Reportes / Dashboards / Seguimiento
+Reportes, alertas y dashboards
 ```
 
 ---
 
 ## 🗄️ Modelo general de base de datos
 
-El modelo SISAT se organiza en dos bloques principales:
+El modelo se divide en dos bloques principales.
 
 ### 🔐 Autenticación
 
@@ -123,22 +121,25 @@ escuela → grupo → alumno → evaluacion_sisat → alerta → seguimiento
                   evaluacion_detalle → indicador_riesgo
 ```
 
-La autenticación se mantiene separada del modelo académico para evitar relaciones circulares innecesarias y facilitar la explicación del diagrama Entidad-Relación.
+La autenticación se mantiene separada del modelo académico para reducir dependencias innecesarias y facilitar la interpretación del diagrama Entidad-Relación.
 
 ---
 
 ## 📦 Tablas principales
 
-* `rol`
-* `usuario`
-* `escuela`
-* `grupo`
-* `alumno`
-* `indicador_riesgo`
-* `evaluacion_sisat`
-* `evaluacion_detalle`
-* `alerta`
-* `seguimiento`
+| Tabla                     | Función                              |
+| ------------------------- | ------------------------------------ |
+| `rol`                     | Catálogo de roles del sistema        |
+| `usuario`                 | Acceso y autenticación               |
+| `escuela`                 | Registro de instituciones educativas |
+| `grupo`                   | Grupos escolares por escuela y ciclo |
+| `alumno`                  | Información del estudiante           |
+| `indicador_riesgo`        | Catálogo de indicadores SISAT        |
+| `evaluacion_sisat`        | Evaluación general del alumno        |
+| `evaluacion_detalle`      | Indicadores activos por evaluación   |
+| `alerta`                  | Alertas generadas por riesgo         |
+| `seguimiento`             | Acciones de atención y seguimiento   |
+| `resumen_dashboard_sisat` | Tabla resumen para dashboards        |
 
 ---
 
@@ -153,55 +154,50 @@ El sistema contempla los siguientes roles:
 * **ORIENTADOR**
 * **ALUMNO**
 
-Cada rol puede acceder a diferentes módulos de acuerdo con su función dentro del proceso de alerta temprana.
+Cada rol tiene acceso a módulos específicos de acuerdo con su función dentro del proceso de alerta temprana.
 
 ---
 
 ## 🔁 Flujo principal del sistema
 
 1. Se registra la información del alumno.
-2. Se asocia el alumno a una escuela y grupo.
+2. El alumno se asocia a una escuela y grupo.
 3. Se captura una evaluación SISAT.
 4. El sistema calcula el puntaje de riesgo.
-5. Se clasifica el caso como:
-
-   * BAJO
-   * MEDIO
-   * ALTO
-   * CRÍTICO
-6. Si el riesgo es MEDIO, ALTO o CRÍTICO, se genera una alerta.
+5. El alumno se clasifica en un nivel de riesgo.
+6. Si el riesgo es medio, alto o crítico, se genera una alerta.
 7. Se registra seguimiento del caso.
-8. Dirección o SEDU consulta reportes y estadísticas.
+8. Dirección o SEDU consultan reportes y estadísticas.
 
 ---
 
 ## ⚠️ Niveles de riesgo
 
-El sistema clasifica el riesgo de abandono escolar en cuatro niveles:
-
-| Nivel      | Descripción                                      |
-| ---------- | ------------------------------------------------ |
-| 🟢 BAJO    | Alumno sin factores graves de riesgo             |
-| 🟡 MEDIO   | Alumno con señales iniciales de riesgo           |
-| 🟠 ALTO    | Alumno con múltiples factores de riesgo          |
-| 🔴 CRÍTICO | Alumno con alta probabilidad de abandono escolar |
+| Nivel          | Descripción                                      |
+| -------------- | ------------------------------------------------ |
+| 🟢 **BAJO**    | Alumno sin factores graves de riesgo             |
+| 🟡 **MEDIO**   | Alumno con señales iniciales de riesgo           |
+| 🟠 **ALTO**    | Alumno con múltiples factores de riesgo          |
+| 🔴 **CRÍTICO** | Alumno con alta probabilidad de abandono escolar |
 
 ---
 
 ## 🧮 Cálculo de riesgo
 
-La evaluación SISAT toma en cuenta factores como:
+El sistema calcula el riesgo considerando:
 
 * Porcentaje de asistencia.
 * Promedio general.
 * Rezago en lectura.
 * Rezago en escritura.
 * Rezago en cálculo mental.
+* Inasistencias frecuentes.
+* Bajo rendimiento académico.
 * Problemas de conducta.
 * Situación socioemocional.
 * Riesgo económico o familiar.
 
-Reglas generales:
+Reglas generales utilizadas:
 
 ```txt
 Asistencia < 80%        → aumenta riesgo
@@ -210,25 +206,55 @@ Indicadores activos     → suman puntaje
 Factores socioemocionales/económicos → mayor peso
 ```
 
+Clasificación general:
+
+```txt
+0 - 2 puntos   → BAJO
+3 - 5 puntos   → MEDIO
+6 - 8 puntos   → ALTO
+9+ puntos      → CRÍTICO
+```
+
 ---
 
-## 📊 Dashboards
+## 📊 Dashboard de simulación
 
-El sistema incluye dashboards para visualizar información clave:
+El sistema incluye un dashboard especializado para visualizar datos de alto volumen.
+
+Archivo principal:
+
+```txt
+dashboard_sisat.php
+```
+
+El dashboard muestra:
 
 * Total de alumnos.
 * Total de escuelas.
 * Total de evaluaciones.
 * Total de alertas.
 * Alertas abiertas.
+* Alertas cerradas.
 * Riesgo bajo.
 * Riesgo medio.
 * Riesgo alto.
 * Riesgo crítico.
-* Casos por municipio.
-* Casos por escuela.
+* Distribución por municipio.
 * Alertas por estatus.
-* Casos críticos.
+* Casos críticos por escuela.
+* Serie histórica por ciclo escolar.
+
+Para evitar consultas pesadas sobre millones de registros, el dashboard utiliza una tabla resumen:
+
+```txt
+resumen_dashboard_sisat
+```
+
+Esta tabla se actualiza mediante:
+
+```txt
+actualizar_resumen_dashboard.sql
+```
 
 ---
 
@@ -240,7 +266,7 @@ El proyecto incluye un módulo de simulación ubicado en:
 simulacion_sisat/
 ```
 
-Este módulo permite generar datos sintéticos para pruebas de rendimiento, dashboards y análisis de tesis.
+Este módulo genera datos sintéticos para pruebas de rendimiento, análisis y exposición académica.
 
 ### Modos disponibles
 
@@ -258,6 +284,32 @@ python simulacion_sisat/generar_datos_sisat.py --modo tesis --particionado
 ```
 
 Este modo genera una muestra grande y representativa, dividida por ciclos escolares para evitar saturar la computadora local.
+
+---
+
+## 📈 Volumen de datos generado para prueba de tesis
+
+Para validar escalabilidad, se generó e importó una muestra masiva con los siguientes volúmenes aproximados:
+
+| Entidad                | Registros |
+| ---------------------- | --------: |
+| Alumnos                |   151,909 |
+| Escuelas               |       500 |
+| Evaluaciones SISAT     | 4,558,230 |
+| Detalles de evaluación | 6,389,739 |
+| Alertas                | 1,147,056 |
+| Seguimientos           |   574,033 |
+
+Después de recalcular los niveles de riesgo, la distribución general de evaluaciones quedó:
+
+| Nivel de riesgo | Registros |
+| --------------- | --------: |
+| BAJO            | 2,479,732 |
+| MEDIO           |   716,103 |
+| ALTO            |   389,575 |
+| CRÍTICO         |   972,820 |
+
+Para el dashboard institucional se utiliza la última evaluación por alumno, mostrando el estado actual de la población simulada.
 
 ---
 
@@ -283,6 +335,8 @@ SISAT/
 ├── sidebar.php
 ├── sisat.sql
 ├── usuarios.php
+├── actualizar_resumen_dashboard.sql
+├── reparar_nivel_riesgo.sql
 ├── simulacion_sisat/
 │   ├── generar_datos_sisat.py
 │   ├── importar_csv_mysql.py
@@ -303,12 +357,18 @@ SISAT/
 git clone https://github.com/YeshuaMoreno/SISAT.git
 ```
 
-### 2. Copiar el proyecto a XAMPP
+### 2. Entrar al proyecto
 
-Ejemplo:
+Si se usa XAMPP:
 
-```txt
-C:\xampp\htdocs\SISAT
+```bash
+cd /c/xampp/htdocs/SISAT
+```
+
+En CMD de Windows:
+
+```bat
+cd /d C:\xampp\htdocs\SISAT
 ```
 
 ### 3. Importar la base de datos
@@ -319,23 +379,38 @@ Importar el archivo:
 sisat.sql
 ```
 
-En MySQL, MariaDB o Navicat Premium.
+Con MySQL:
+
+```bat
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root < sisat.sql
+```
+
+O desde Navicat/phpMyAdmin ejecutando el contenido de `sisat.sql`.
 
 ### 4. Configurar conexión
 
-Revisar el archivo:
+Editar:
 
 ```txt
 conexion.php
 ```
 
-Ejemplo:
+Ejemplo para MySQL local sin contraseña:
 
 ```php
-$host = "localhost";
+$host = "127.0.0.1";
 $db   = "sisat";
 $user = "root";
-$pass = "root123";
+$pass = "";
+```
+
+Ejemplo para MySQL local con contraseña:
+
+```php
+$host = "127.0.0.1";
+$db   = "sisat";
+$user = "root";
+$pass = "root";
 ```
 
 ### 5. Abrir el sistema
@@ -344,11 +419,17 @@ $pass = "root123";
 http://localhost/SISAT/
 ```
 
+O directamente:
+
+```txt
+http://localhost/SISAT/login.php
+```
+
 ---
 
 ## 🔐 Credenciales de prueba
 
-Las credenciales pueden variar según el SQL importado, pero el sistema contempla usuarios como:
+Las credenciales pueden variar según el SQL importado. El sistema contempla usuarios base como:
 
 ```txt
 admin
@@ -359,91 +440,172 @@ orientador
 alumno01
 ```
 
----
-
-## 📈 Dataset para dashboards
-
-La simulación puede generar CSVs normalizados como:
-
-* `rol.csv`
-* `usuario.csv`
-* `escuela.csv`
-* `grupo.csv`
-* `alumno.csv`
-* `indicador_riesgo.csv`
-* `evaluacion_sisat.csv`
-* `evaluacion_detalle.csv`
-* `alerta.csv`
-* `seguimiento.csv`
-
-Y también un dataset denormalizado para análisis:
+En la versión de prueba, varios usuarios semilla utilizan la contraseña:
 
 ```txt
-sisat_dashboard_dataset.csv
+password
 ```
-
-Este archivo puede ser utilizado en:
-
-* Power BI
-* Tableau
-* Python
-* MySQL
-* Herramientas de análisis por lotes
 
 ---
 
-## ⚠️ Advertencia sobre archivos grandes
+## 🚀 Generar datos modo tesis
 
-Los archivos generados por el modo TESIS pueden ser demasiado grandes para abrirse en Excel.
+Desde la carpeta del proyecto:
 
-Por esa razón, los archivos generados dentro de:
+```bash
+python simulacion_sisat/generar_datos_sisat.py --modo tesis --particionado
+```
+
+Los archivos CSV se generan en:
 
 ```txt
 simulacion_sisat/output/
 ```
 
-no deben subirse al repositorio.
+---
 
-Se recomienda subir únicamente:
+## 📥 Importar CSVs generados a MySQL
 
-* Scripts de generación.
-* Documentación.
-* Archivos SQL.
-* Muestras pequeñas.
+Instalar el conector de MySQL para Python:
+
+```bash
+python -m pip install mysql-connector-python
+```
+
+Ejecutar el importador:
+
+```bash
+python simulacion_sisat/importar_csv_mysql.py
+```
+
+Si el campo `NIVEL_RIESGO` queda vacío por incompatibilidad de importación CSV/ENUM, ejecutar:
+
+```bat
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root < reparar_nivel_riesgo.sql
+```
+
+Después actualizar la tabla resumen:
+
+```bat
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root < actualizar_resumen_dashboard.sql
+```
+
+---
+
+## 📊 Actualizar resumen del dashboard
+
+Después de importar datos nuevos o reparar niveles de riesgo, ejecutar:
+
+```bat
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root < actualizar_resumen_dashboard.sql
+```
+
+Esto actualiza la tabla:
+
+```txt
+resumen_dashboard_sisat
+```
+
+El dashboard usa esta tabla para cargar rápidamente sin consultar millones de registros en cada visita.
+
+---
+
+## ⚠️ Advertencia sobre archivos grandes
+
+Los archivos generados dentro de:
+
+```txt
+simulacion_sisat/output/
+```
+
+pueden ser muy grandes y no deben subirse al repositorio.
+
+El repositorio solo debe incluir:
+
 * Código fuente.
+* Scripts de generación.
+* Scripts SQL.
+* Documentación.
+* Muestras pequeñas en `output_sample/`.
 
 ---
 
 ## 📌 Recomendación para exposición
 
-Para una exposición académica se recomienda utilizar el modo **TESIS** como muestra representativa de alto volumen.
+Para una exposición académica se recomienda mostrar:
 
-El escenario estatal completo de 40 años puede justificarse conceptualmente, pero debe generarse por particiones anuales o por ciclos escolares para evitar saturar una laptop local.
+1. Login del sistema.
+2. Módulo de alumnos.
+3. Captura SISAT.
+4. Generación de alerta.
+5. Seguimiento.
+6. Dashboard de simulación.
+7. Conteos masivos cargados en MySQL.
+8. Explicación del modelo Entidad-Relación.
+9. Justificación del uso de tabla resumen para rendimiento.
 
-Esta estrategia demuestra escalabilidad sin comprometer el rendimiento durante la presentación.
+El escenario estatal completo puede justificarse conceptualmente, pero para ejecución local se recomienda usar datos particionados y muestras representativas de alto volumen.
 
 ---
 
-## 🚧 Pendientes y mejoras futuras
+## 🧾 Comandos útiles
 
-* Mejorar filtros avanzados en dashboards.
-* Agregar exportación PDF y Excel.
-* Implementar autenticación más robusta.
-* Agregar bitácora de acciones.
-* Mejorar permisos específicos por rol.
-* Agregar gráficas comparativas por ciclo escolar.
-* Preparar documentación técnica completa.
-* Integrar datasets simulados con Power BI o Tableau.
+### Entrar al proyecto desde Git Bash
+
+```bash
+cd /c/xampp/htdocs/SISAT
+```
+
+### Ver estado de Git
+
+```bash
+git status
+```
+
+### Subir cambios
+
+```bash
+git add .
+git commit -m "docs: update SISAT README"
+git push
+```
+
+### Ver conteos principales en MySQL
+
+```bat
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root sisat -e "SELECT COUNT(*) alumnos FROM alumno; SELECT COUNT(*) evaluaciones FROM evaluacion_sisat; SELECT COUNT(*) alertas FROM alerta;"
+```
+
+### Ver distribución de riesgo
+
+```bat
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root sisat -e "SELECT NIVEL_RIESGO, COUNT(*) total FROM evaluacion_sisat GROUP BY NIVEL_RIESGO;"
+```
+
+---
+
+## 🚧 Mejoras futuras
+
+* Paginación avanzada para alumnos.
+* Exportación PDF y Excel.
+* Bitácora de acciones por usuario.
+* Filtros avanzados por municipio, escuela y ciclo escolar.
+* Optimización de reportes para grandes volúmenes.
+* Visualización geográfica por municipio.
+* Integración con Power BI o Tableau.
+* Separación de configuración sensible mediante archivo `.env`.
 
 ---
 
 ## 👨‍💻 Autor
 
 **Roberto Yeshua Moreno Pedraza**
-Ingeniería en Sistemas Computacionales
+Ingeniero en Sistemas Computacionales
 
 ---
 
-## ⭐ Nota
+## ⭐ Nota académica
 
-Este proyecto fue desarrollado con fines académicos como propuesta de automatización para un Sistema de Alerta Temprana para Abandono Escolar, integrando base de datos relacional, lógica de riesgo, dashboards y simulación de datos históricos.
+Este proyecto fue desarrollado con fines académicos como propuesta de automatización para un Sistema de Alerta Temprana para Abandono Escolar, integrando base de datos relacional, lógica de riesgo, dashboards, alertas y simulación de datos históricos.
+
+El enfoque principal es demostrar cómo un proceso manual puede transformarse en un sistema digital capaz de apoyar la toma de decisiones institucionales mediante datos, indicadores y seguimiento oportuno.
