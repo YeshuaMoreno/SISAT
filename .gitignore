@@ -1,0 +1,7 @@
+.env
+*.log
+.DS_Store
+Thumbs.db
+vendor/
+node_modules/
+backup_sisat/
