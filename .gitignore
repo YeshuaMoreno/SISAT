@@ -5,3 +5,9 @@ Thumbs.db
 vendor/
 node_modules/
 backup_sisat/
+
+# SISAT simulation outputs - no subir CSVs gigantes
+simulacion_sisat/output/
+simulacion_sisat/output/**/*.csv
+simulacion_sisat/output/**/*.gz
+*.csv.gz

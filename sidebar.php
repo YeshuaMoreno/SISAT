@@ -15,8 +15,9 @@ $menuAdmin = [
     ['url' => 'captura_sisat.php','ico' => '📋', 'txt' => 'Captura SISAT'],
     ['url' => 'alertas.php',      'ico' => '🔔', 'txt' => 'Alertas'],
     ['url' => 'seguimiento.php',  'ico' => '📝', 'txt' => 'Seguimiento'],
-    ['url' => 'reportes.php',     'ico' => '📊', 'txt' => 'Reportes'],
-    ['url' => 'usuarios.php',     'ico' => '👥', 'txt' => 'Usuarios'],
+    ['url' => 'reportes.php',        'ico' => '📊', 'txt' => 'Reportes'],
+    ['url' => 'dashboard_sisat.php', 'ico' => '🧪', 'txt' => 'Dashboard Simulación'],
+    ['url' => 'usuarios.php',        'ico' => '👥', 'txt' => 'Usuarios'],
 ];
 
 $menuSedu = [
@@ -24,7 +25,8 @@ $menuSedu = [
     ['url' => 'alumnos.php',      'ico' => '👤', 'txt' => 'Alumnos'],
     ['url' => 'escuelas.php',     'ico' => '🏫', 'txt' => 'Escuelas'],
     ['url' => 'alertas.php',      'ico' => '🔔', 'txt' => 'Alertas'],
-    ['url' => 'reportes.php',     'ico' => '📊', 'txt' => 'Reportes SEDU'],
+    ['url' => 'reportes.php',        'ico' => '📊', 'txt' => 'Reportes SEDU'],
+    ['url' => 'dashboard_sisat.php', 'ico' => '🧪', 'txt' => 'Dashboard Simulación'],
 ];
 
 $menuDirector = [
@@ -33,7 +35,8 @@ $menuDirector = [
     ['url' => 'grupos.php',       'ico' => '📚', 'txt' => 'Grupos'],
     ['url' => 'alertas.php',      'ico' => '🔔', 'txt' => 'Alertas'],
     ['url' => 'seguimiento.php',  'ico' => '📝', 'txt' => 'Seguimiento'],
-    ['url' => 'reportes.php',     'ico' => '📊', 'txt' => 'Reportes'],
+    ['url' => 'reportes.php',        'ico' => '📊', 'txt' => 'Reportes'],
+    ['url' => 'dashboard_sisat.php', 'ico' => '🧪', 'txt' => 'Dashboard Simulación'],
 ];
 
 $menuDocente = [
